@@ -18,8 +18,7 @@ def collect_gpu_metrics(device_index: int = 0):
     metrics["clock_mem_mhz"] = pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
     metrics["fan_speed_pct"] = pynvml.nvmlDeviceGetFanSpeed(handle)
 
-    # ⚠️ PCIe throughput, SM occupancy, kernel timings need CUDA profiling hooks
-    # Stubs for now:
+    #We need to get this from cuda profiling tool say for now we can get this fro NSIGHT Compute
     metrics["pcie_throughput_mb_s"] = None
     metrics["kernel_time_ms"] = None
     metrics["kernel_launch_latency_ms"] = None
