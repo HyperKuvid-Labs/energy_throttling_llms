@@ -38,6 +38,12 @@ class TargetActorNetwork(nn.Module):
             torch.round(spec_eagle_topk), 
             torch.round(spec_num_draft_tokens)
         ], dim=1)
+    
+    def update_weights(self, loss):
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
 
 # the three outputs over here are: speculative_num_steps, speculative_eagle_topk, speculative_num_draft_tokens
 # the inputs are current hardware metrics, for cpu as well as gpu

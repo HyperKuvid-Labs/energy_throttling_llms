@@ -32,3 +32,9 @@ class QNetwork(nn.Module):
         q_value = self.fc4(x) 
         
         return q_value
+    
+    def update_weights(self, loss):
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
