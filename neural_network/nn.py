@@ -45,17 +45,17 @@ def main():
     model = SpeculativeModel(input_size, hidden_size, output_size)
     print(model)
     
-    # # Test the model
-    # test_input = torch.randn(2, input_size)
-    # output = model(test_input)
-    # print(f"Input shape: {test_input.shape}")
-    # print(f"Output shape: {output.shape}")
-    # print(f"Output probabilities sum: {torch.sum(output, dim=1)}")
+    # Test the model
+    test_input = torch.randn(2, input_size)
+    output = model(test_input)
+    print(f"Input shape: {test_input.shape}")
+    print(f"Output shape: {output.shape}")
+    print(f"Output probabilities sum: {torch.sum(output, dim=1)}")
     
-    # # Test dynamic learning rate change
-    # print(f"Current learning rate: {model.learning_rate}")
-    # model.set_learning_rate(0.01)
-    # print(f"New learning rate: {model.learning_rate}")
+    # Test dynamic learning rate change
+    print(f"Current learning rate: {model.learning_rate}")
+    model.set_learning_rate(0.01)
+    print(f"New learning rate: {model.learning_rate}")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,7 @@
+[project]
+name = "energy-throttling-llms"
+version = "0.1.0"
+description = "Develop an energy-aware reinforcement learning framework that trains LLMs using RLHF with dual reward signals: traditional optimum rewards for model quality and energy-based rewards for hardware efficiency."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
