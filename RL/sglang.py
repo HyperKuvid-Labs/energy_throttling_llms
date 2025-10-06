@@ -1,8 +1,6 @@
 from sglang.test.doc_patch import launch_server_cmd
 from sglang.utils import wait_for_server, print_highlight, terminate_process
-
 import openai
-
 
 #Eagle2 decoding
 
@@ -30,18 +28,13 @@ import openai
 
 # print_highlight(f"Response: {response}")
 
-
-
-
-
 #What i am thinking is that we need to use a bigger model for training as it has more overhaed for forward pass
 #but max i can run in my lap is ig gemma2B(or something relative to this)
-
 
 #I am defining these as dummies for now but you get this from policy network
 #Eagle3 decoding
 
-def eagle_3_sd(draft_model, model, prompt, speculative_num_steps, speculative_eagle_topk, speculative_num_draft_tokens):
+def eagle_3_sd(speculative_num_steps, speculative_eagle_topk, speculative_num_draft_tokens, model="meta-llama/Meta-Llama-3.1-8B-Instruct", draft_model="google/gemma-1.1b-it", prompt="What's happening in thinkingmachines.ai"):
     server_process, port = launch_server_cmd(
     f"""
     python3 -m sglang.launch_server \
@@ -57,7 +50,6 @@ def eagle_3_sd(draft_model, model, prompt, speculative_num_steps, speculative_ea
         --log-level warning
     """
     )
-
 
     #Here the port variable is chosen randomly by the launch_server_cmd function because 
     #while we run that launch_server_cmd it binds to some random tcp server and gives the port
@@ -91,5 +83,5 @@ def main():
     speculative_num_draft_tokens = 32
     model = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     draft_model = "google/gemma-1.1b-it"
-    resp = eagle_3_sd(draft_model, model, prompt, speculative_num_steps, speculative_eagle_topk, speculative_num_draft_tokens)
+    resp = eagle_3_sd(speculative_num_steps, speculative_eagle_topk, speculative_num_draft_tokens, model, draft_model, prompt)
     print(resp)
