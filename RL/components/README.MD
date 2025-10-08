@@ -1,15 +1,23 @@
 # Components
 
-The idea is something like using 
-> Two Actors
-> - Target actor
-> - Fast updation actor
+The idea is to use the following architecture:
 
-> One critic
-> - Q-target critic
+**Two Actors:**
+- Target actor
+- Fast updating actor
 
-So the thing goes like this:
-- the policy spits out an state, which is just one state in our case, with the three params, and if its in some boundary, we're gonna proceed.
-- calculate the q of this state, and not still update the policy
-- when the next one comes, we're gonna take a td error in hand and then update the policy
-- so after some iteratons, the batch updates the target policy, and till now only the target policy gives out the value for q, we'll be using target policy over here, but updating the fast updating policy, this may be confusing, but when i code it up, it's more easier. 
+**One Critic:**
+- Q-target critic
+
+## How It Works
+
+The process works as follows:
+
+- The policy outputs a state with three parameters. If the state is within some boundary, we proceed.
+- Calculate the Q-value of this state, but don't update the policy yet.
+- When the next state comes, we take the TD error and then update the policy.
+- After some iterations, the batch updates the target policy. Until now, only the target policy gives out the value for Q. We'll be using the target policy for Q-value estimation while updating the fast updating policy. This may be confusing in description, but when I code it up, it's easier to understand.
+
+## Profiling
+
+This project also contains a file for CPU and GPU metric profiling during function execution, on which the reward is based. It's available in the file [profiler_cpu_gpu.py](profiler_cpu_gpu.py).
