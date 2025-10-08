@@ -12,6 +12,7 @@ matplotlib.use('Agg') # minimum usage of X server resources
 import time
 
 from sglang import eagle_3_sd
+from components.profiler_cpu_gpu import profiler
 
 prompts = [
     # ========== MATHEMATICAL REASONING (AIME/MATH Level) ==========
@@ -328,11 +329,17 @@ def main():
         x = np.random.uniform(0, 76)
         prompt = prompts[int(x)]
         print(f"Prompt: {prompt}...")
+
+        @profiler
+        eagle_3_sd(action[0], action[1], action[2], prompt)
         
-        profiled_metrics = [np.random.uniform(50.0, 80.0), np.random.uniform(50.0, 80.0), np.random.uniform(60.0, 90.0), 
-                            np.random.uniform(3000.0, 6000.0), np.random.uniform(7000.0, 12000.0), np.random.uniform(400000.0, 700000.0), 
-                            np.random.uniform(2000.0, 4000.0), np.random.uniform(40.0, 70.0)]
-        agent.prolfiled_metrics = profiled_metrics
+        # profiled_metrics = [np.random.uniform(50.0, 80.0), np.random.uniform(50.0, 80.0), np.random.uniform(60.0, 90.0), 
+        #                     np.random.uniform(3000.0, 6000.0), np.random.uniform(7000.0, 12000.0), np.random.uniform(400000.0, 700000.0), 
+        #                     np.random.uniform(2000.0, 4000.0), np.random.uniform(40.0, 70.0)]
+        # agent.prolfiled_metrics = profiled_metrics
+
+        # here i need to notedown the format, and get the avg of all the metrics for the time of excution,         for all the cpu and gpu metrics notes, and need to also fill the baseline metrics accordingly.
+        # Will do it as soon as possible !!
 
         reward = agent.calculate_reward(profiled_metrics, baseline_metrics)
         rewards.append(reward)
