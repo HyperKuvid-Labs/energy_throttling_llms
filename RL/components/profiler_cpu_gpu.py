@@ -17,18 +17,18 @@ def profiler(func):
 
     print(f"Profling: {func.__name__}\n")
     print("\n")
-  
+
     print("CUDA Table, first twenty values only")
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
     print("\n")
-  
+
     print("CPU Table, same as above bruh")
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
     print("\n")
-  
+
     output_file = f"{func.__name__}_trace.json"
     prof.export_chrome_trace(output_file)
 
-  return result
+    return result
 
-return wrapper
+  return wrapper
