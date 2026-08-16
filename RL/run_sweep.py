@@ -49,6 +49,12 @@ def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction)
         "--mem-fraction-static", str(mem_fraction),
         "--cuda-graph-max-bs", str(bs),
         "--max-running-requests", str(bs),
+        # The target ships bfloat16 but the EAGLE3 draft head ships float16, and
+        # sglang does not reconcile them -- CUDA graph capture dies with
+        # "expected mat1 and mat2 to have the same dtype, but got: float !=
+        # c10::Half". Forcing both to float16 is what makes speculation launch.
+        # Applied to the baseline too, so the comparison is dtype-matched.
+        "--dtype", "float16",
         "--log-level", "warning",
     ]
     if steps > 0:
@@ -110,10 +116,18 @@ def send_batch(port, bs, num_prompts):
 
 
 def read_server_info(port, bs):
-    info = requests.get(f"http://127.0.0.1:{port}/server_info", timeout=30).json()
-    internal = info["internal_states"][0]
+    # The route is /get_server_info; /server_info returns a payload without
+    # internal_states (http_server.py:437).
+    info = requests.get(f"http://127.0.0.1:{port}/get_server_info", timeout=30).json()
+    internal_states = info.get("internal_states") or []
+    if not internal_states:
+        return 1.0, []
+    internal = internal_states[0]
     accept_length = internal.get("avg_spec_accept_length") or 1.0
-    step_times = internal.get("step_time_dict", {}).get(str(bs), [])
+    # step_time_dict is keyed by batch size; json turns int keys into strings,
+    # but accept both so a schema change does not silently yield no timings.
+    step_time_dict = internal.get("step_time_dict") or {}
+    step_times = step_time_dict.get(str(bs)) or step_time_dict.get(bs) or []
     return accept_length, step_times
 
 
@@ -149,10 +163,17 @@ def run_config(cfg, args, profiler_instance):
         step_time = float(np.percentile(step_times, 20)) if step_times else None
 
         total_tokens = max(args.num_prompts, bs) * OUTPUT_TOKENS
+        # Per-sequence decode throughput. sglang's own metric is
+        # accept_length / step_time; wall-clock aggregate divided by batch size
+        # measures the same quantity, so it is a usable fallback if
+        # SGLANG_RECORD_STEP_TIME did not populate step_time_dict.
+        wall_clock_per_seq = total_tokens / elapsed / bs
         record.update({
             "accept_length": round(accept_length, 3),
             "step_time_s": round(step_time, 6) if step_time else None,
-            "speed_tok_s": round(accept_length / step_time, 3) if step_time else None,
+            "speed_tok_s": round(accept_length / step_time, 3) if step_time
+                           else round(wall_clock_per_seq, 3),
+            "speed_source": "step_time" if step_time else "wall_clock",
             "wall_clock_s": round(elapsed, 3),
             "wall_clock_tok_s": round(total_tokens / elapsed, 3),
             "total_output_tokens": total_tokens,
