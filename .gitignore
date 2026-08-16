@@ -1,2 +1,6 @@
 /.venv
 *.pyc
+
+# Trained weights and collected datasets -- regenerate, don't commit.
+*.pth
+*.jsonl

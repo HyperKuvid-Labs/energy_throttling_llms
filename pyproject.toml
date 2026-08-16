@@ -4,4 +4,25 @@ version = "0.1.0"
 description = "Develop an energy-aware reinforcement learning framework that trains LLMs using RLHF with dual reward signals: traditional optimum rewards for model quality and energy-based rewards for hardware efficiency."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+
+# Offline training only -- this is what the laptop needs. Collecting the sweep
+# additionally needs the `sweep` extra, which only installs on a CUDA host.
+dependencies = [
+    "torch>=2.4",
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# Sweep collection on the GPU pod. sglang is pinned exactly: 0.5.2 resolves
+# torch, sgl-kernel and flashinfer to versions built against each other, and
+# installing them piecemeal produces an sgl_kernel/torch ABI mismatch
+# (undefined symbol _ZN3c108ListType3get...).
+sweep = [
+    "sglang[all]==0.5.2",
+    "pynvml>=11.5",
+    "psutil>=5.9",
+    "huggingface_hub>=0.23",
+    "hf_transfer>=0.1.6",
+]

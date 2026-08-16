@@ -1,3 +1,20 @@
+"""Original online DDPG loop. SUPERSEDED by train_offline.py -- kept for reference.
+
+Do not run this to produce results. Known defects, left in place rather than
+patched because the offline path replaces the whole loop:
+
+  * profiler(eagle_3_sd)(...) discards its return value, and profiled_metrics
+    stays at its hardcoded initial value, so the reward is a constant 0.9396
+    regardless of the action taken.
+  * input_dims = 8 contradicts the 15-feature get_normalized_state_vector.
+  * critic_loss() runs a second time per iteration purely to log its value,
+    which appends a duplicate entry to q_values.
+  * The actors round their outputs, zeroing the gradient (see policy.py).
+
+The import below is also updated for the sglang.py -> sglang_runner.py rename;
+without it this module cannot be imported at all.
+"""
+
 import torch
 import torch.nn.functional as F
 
@@ -11,7 +28,7 @@ import matplotlib
 matplotlib.use('Agg') # minimum usage of X server resources
 import time
 
-from sglang import eagle_3_sd
+from sglang_runner import eagle_3_sd
 from components.profiler_cpu_gpu import profiler
 
 prompts = [
@@ -326,8 +343,9 @@ def main():
 
         # should do the profiling here with the chosen action
         # for now, just random profiled metrics
-        x = np.random.uniform(0, 76)
-        prompt = prompts[int(x)]
+        # np.random.uniform(0, 76) can return >= 75 and IndexError on a
+        # 75-element list; randint is bounded by the list length itself.
+        prompt = prompts[np.random.randint(len(prompts))]
         print(f"Prompt: {prompt}...")
 
         profiler(eagle_3_sd)(action[0], action[1], action[2], prompt)
