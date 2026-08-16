@@ -1,0 +1,70 @@
+/home/pradheep/.local/share/mise/installs/python/3.11.14/lib/python3.11/site-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[2026-08-17 03:45:25,859] [zeus.device.gpu.nvidia](nvidia.py:47) pynvml is available and initialized.
+[2026-08-17 03:45:25,860] [zeus.device.cpu.rapl](rapl.py:139) RAPL is available.
+[2026-08-17 03:45:25,860] [zeus.monitor.energy](energy.py:209) Monitoring GPU indices [0].
+[2026-08-17 03:45:25,860] [zeus.monitor.energy](energy.py:210) Monitoring CPU indices []
+gpu power limit fetch failed: Not Supported
+  epoch   20  loss 0.00089
+  epoch   40  loss 0.00141
+  epoch   60  loss 0.00046
+  epoch   80  loss 0.00044
+  epoch  100  loss 0.00046
+  epoch  120  loss 0.00054
+  epoch  140  loss 0.00035
+  epoch  160  loss 0.00036
+  epoch  180  loss 0.00039
+  epoch  200  loss 0.00045
+
+--- seed=1  policy picks bs=16 -> (3, 2, 4) ---
+[seed=1][baseline] bs=16 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=90.744 tok/s J/tok=0.05389
+[seed=1][reference] bs=16 steps=3 topk=4 draft=8 ...
+    accept=2.398 speed=112.937 tok/s J/tok=0.05173
+[seed=1][policy] bs=16 steps=3 topk=2 draft=4 ...
+    accept=2.144 speed=117.831 tok/s J/tok=0.04901
+  epoch   20  loss 0.00072
+  epoch   40  loss 0.00063
+  epoch   60  loss 0.00097
+  epoch   80  loss 0.00048
+  epoch  100  loss 0.00062
+  epoch  120  loss 0.00051
+  epoch  140  loss 0.00054
+  epoch  160  loss 0.00035
+  epoch  180  loss 0.00057
+  epoch  200  loss 0.00051
+
+--- seed=2  policy picks bs=16 -> (3, 2, 4) ---
+[seed=2][baseline] bs=16 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=90.435 tok/s J/tok=0.05488
+[seed=2][reference] bs=16 steps=3 topk=4 draft=8 ...
+    accept=2.405 speed=112.762 tok/s J/tok=0.05209
+[seed=2][policy] bs=16 steps=3 topk=2 draft=4 ...
+    accept=2.131 speed=117.278 tok/s J/tok=0.05025
+  epoch   20  loss 0.00064
+  epoch   40  loss 0.00138
+  epoch   60  loss 0.00074
+  epoch   80  loss 0.00041
+  epoch  100  loss 0.00049
+  epoch  120  loss 0.00044
+  epoch  140  loss 0.00041
+  epoch  160  loss 0.00037
+  epoch  180  loss 0.00034
+  epoch  200  loss 0.00040
+
+--- seed=3  policy picks bs=16 -> (3, 2, 4) ---
+[seed=3][baseline] bs=16 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=90.712 tok/s J/tok=0.05534
+[seed=3][reference] bs=16 steps=3 topk=4 draft=8 ...
+    accept=2.405 speed=112.898 tok/s J/tok=0.0521
+[seed=3][policy] bs=16 steps=3 topk=2 draft=4 ...
+    accept=2.165 speed=119.873 tok/s J/tok=0.04898
+
+=== summary across seeds (bs=16) ===
+  seed=1  policy_config=(3, 2, 4)  ref_reward=0.3181  policy_reward=0.3863  delta=+0.0682
+  seed=2  policy_config=(3, 2, 4)  ref_reward=0.0911  policy_reward=0.3852  delta=+0.2941
+  seed=3  policy_config=(3, 2, 4)  ref_reward=0.2978  policy_reward=0.4009  delta=+0.1032
+
+  reference: mean=0.2357 std=0.1025
+  policy:    mean=0.3908 std=0.0071
+  mean delta (policy - reference): +0.1552

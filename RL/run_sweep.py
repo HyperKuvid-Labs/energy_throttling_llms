@@ -12,7 +12,7 @@ numbers are directly comparable to sglang's published ones.
 
 Usage:
   export SGLANG_RECORD_STEP_TIME=1
-  python3 run_sweep.py --output sweep.jsonl                # full 38-config grid
+  python3 run_sweep.py --output sweep.jsonl                # full grid (see sweep_config.py)
   python3 run_sweep.py --output sweep.jsonl --phase0       # baseline + reference only
   python3 run_sweep.py --output sweep.jsonl --start 25     # resume after preemption
 """
@@ -77,9 +77,11 @@ def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction)
     return subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
-def wait_for_server(port, timeout):
+def wait_for_server(port, timeout, proc):
     deadline = time.time() + timeout
     while time.time() < deadline:
+        if proc.poll() is not None:
+            return False  # server process already died, no point polling further
         try:
             if requests.get(f"http://127.0.0.1:{port}/health", timeout=5).status_code == 200:
                 return True
@@ -143,7 +145,7 @@ def run_config(cfg, args, profiler_instance):
         "is_baseline": (steps, topk, num_draft) == BASELINE_CONFIG,
     }
     try:
-        if not wait_for_server(port, args.launch_timeout):
+        if not wait_for_server(port, args.launch_timeout, proc):
             record["error"] = "server failed to start"
             return record
 
@@ -229,6 +231,10 @@ def main():
     parser.add_argument("--launch-timeout", type=int, default=900)
     parser.add_argument("--phase0", action="store_true",
                         help="only baseline + reference config at bs=1")
+    parser.add_argument("--repeats", type=int, default=1,
+                        help="run the full grid this many times, one full pass per repeat "
+                             "(not back-to-back per config), so repeats land at different "
+                             "thermal states")
     args = parser.parse_args()
 
     if args.phase0:
@@ -236,8 +242,12 @@ def main():
     else:
         grid = build_grid()
 
-    end = args.end if args.end is not None else len(grid)
-    todo = grid[args.start:end]
+    full_grid = grid * args.repeats
+    repeat_ids = [rep for rep in range(args.repeats) for _ in grid]
+
+    end = args.end if args.end is not None else len(full_grid)
+    todo = full_grid[args.start:end]
+    todo_repeats = repeat_ids[args.start:end]
 
     try:
         from components.profiler_cpu_gpu import HardwareMetricsProfiler
@@ -247,11 +257,12 @@ def main():
         profiler_instance = None
 
     print(f"running {len(todo)} configs (index {args.start}..{end - 1}) -> {args.output}")
-    for offset, cfg in enumerate(todo):
+    for offset, (cfg, rep) in enumerate(zip(todo, todo_repeats)):
         idx = args.start + offset
-        print(f"[{idx}] bs={cfg[0]} steps={cfg[1]} topk={cfg[2]} draft={cfg[3]} ...", flush=True)
+        print(f"[{idx}] bs={cfg[0]} steps={cfg[1]} topk={cfg[2]} draft={cfg[3]} repeat={rep} ...", flush=True)
         record = run_config(cfg, args, profiler_instance)
         record["index"] = idx
+        record["repeat"] = rep
         with open(args.output, "a") as fout:
             fout.write(json.dumps(record) + "\n")
         if "error" in record:

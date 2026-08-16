@@ -1,0 +1,19 @@
+/home/pradheep/.local/share/mise/installs/python/3.11.14/lib/python3.11/site-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+policy picks: {16: (3, 2, 4)}
+[2026-08-17 03:37:37,155] [zeus.device.gpu.nvidia](nvidia.py:47) pynvml is available and initialized.
+[2026-08-17 03:37:37,155] [zeus.device.cpu.rapl](rapl.py:139) RAPL is available.
+[2026-08-17 03:37:37,155] [zeus.monitor.energy](energy.py:209) Monitoring GPU indices [0].
+[2026-08-17 03:37:37,155] [zeus.monitor.energy](energy.py:210) Monitoring CPU indices []
+gpu power limit fetch failed: Not Supported
+[baseline] bs=16 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=90.741 tok/s J/tok=0.05453
+[reference] bs=16 steps=3 topk=4 draft=8 ...
+    accept=2.405 speed=113.208 tok/s J/tok=0.05132
+[policy] bs=16 steps=3 topk=2 draft=4 ...
+    accept=2.144 speed=117.911 tok/s J/tok=0.0495
+
+=== live A/B: policy pick vs fixed reference (measured just now, paired) ===
+bs=16  policy_config=(3, 2, 4)
+  reference  reward=0.3268 speed=113.208 util=0.994 J/tok=0.05132
+  policy     reward=0.3869 speed=117.911 util=0.979 J/tok=0.0495

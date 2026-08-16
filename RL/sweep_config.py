@@ -17,7 +17,7 @@ constraints below are taken from sglang 0.5.2 source, not from the docs:
      non-speculative baseline. Any other zero-containing combination is invalid.
 """
 
-BATCH_SIZES = [1, 8]
+BATCH_SIZES = [1, 4, 8, 16]
 STEPS = [0, 1, 3, 5]
 TOPK = [0, 1, 2, 4]
 NUM_DRAFT_TOKENS = [0, 2, 4, 8, 16]

@@ -1,0 +1,78 @@
+/home/pradheep/.local/share/mise/installs/python/3.11.14/lib/python3.11/site-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+plan: 4 batch sizes need live runs, 17 total server launches
+  bs=1: [((5, 4, 16), ['thompson_sampling', 'gbt']), ((5, 4, 8), ['cql'])]
+  bs=4: [((3, 1, 4), ['thompson_sampling']), ((5, 4, 16), ['gbt'])]
+  bs=8: [((3, 2, 4), ['linucb']), ((1, 1, 2), ['thompson_sampling'])]
+  bs=16: [((3, 2, 4), ['lookup_table', 'linucb', 'doubly_robust']), ((1, 4, 2), ['thompson_sampling']), ((5, 2, 8), ['gbt'])]
+[2026-08-17 04:22:34,959] [zeus.device.gpu.nvidia](nvidia.py:47) pynvml is available and initialized.
+[2026-08-17 04:22:34,959] [zeus.device.cpu.rapl](rapl.py:139) RAPL is available.
+[2026-08-17 04:22:34,959] [zeus.monitor.energy](energy.py:209) Monitoring GPU indices [0].
+[2026-08-17 04:22:34,960] [zeus.monitor.energy](energy.py:210) Monitoring CPU indices []
+gpu power limit fetch failed: Not Supported
+[baseline] bs=1 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=97.254 tok/s J/tok=0.82463
+[reference] bs=1 steps=3 topk=4 draft=8 ...
+    accept=2.397 speed=156.197 tok/s J/tok=0.45974
+[cfg_5_4_16] bs=1 steps=5 topk=4 draft=16 ...
+    accept=2.718 speed=150.956 tok/s J/tok=0.49426
+[cfg_5_4_8] bs=1 steps=5 topk=4 draft=8 ...
+    accept=2.475 speed=139.058 tok/s J/tok=0.51644
+[baseline] bs=4 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=95.042 tok/s J/tok=0.1931
+[reference] bs=4 steps=3 topk=4 draft=8 ...
+    accept=2.396 speed=142.638 tok/s J/tok=0.14456
+[cfg_3_1_4] bs=4 steps=3 topk=1 draft=4 ...
+    accept=2.039 speed=129.574 tok/s J/tok=0.15866
+[cfg_5_4_16] bs=4 steps=5 topk=4 draft=16 ...
+    accept=2.68 speed=134.803 tok/s J/tok=0.1621
+[baseline] bs=8 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=93.515 tok/s J/tok=0.10209
+[reference] bs=8 steps=3 topk=4 draft=8 ...
+    accept=2.405 speed=134.214 tok/s J/tok=0.08542
+[cfg_3_2_4] bs=8 steps=3 topk=2 draft=4 ...
+    accept=2.143 speed=125.921 tok/s J/tok=0.08445
+[cfg_1_1_2] bs=8 steps=1 topk=1 draft=2 ...
+    accept=1.593 speed=116.676 tok/s J/tok=0.08398
+[baseline] bs=16 steps=0 topk=0 draft=0 ...
+    accept=1.0 speed=90.793 tok/s J/tok=0.05477
+[reference] bs=16 steps=3 topk=4 draft=8 ...
+    accept=2.398 speed=113.417 tok/s J/tok=0.05213
+[cfg_3_2_4] bs=16 steps=3 topk=2 draft=4 ...
+    accept=2.144 speed=117.784 tok/s J/tok=0.0482
+[cfg_1_4_2] bs=16 steps=1 topk=4 draft=2 ...
+    accept=1.591 speed=107.542 tok/s J/tok=0.04691
+[cfg_5_2_8] bs=16 steps=5 topk=2 draft=8 ...
+    accept=2.412 speed=102.643 tok/s J/tok=0.05838
+
+=== live validation: every algo's actual pick vs fixed reference, measured just now ===
+
+bs=1
+  reference    (3, 4, 8)    reward=0.5323 speed=156.197
+  (5, 4, 16)   picked_by=['thompson_sampling', 'gbt']
+    reward=0.5173 (vs reference -0.0150)  speed=150.956 util=0.921
+  (5, 4, 8)    picked_by=['cql']
+    reward=0.4483 (vs reference -0.0840)  speed=139.058 util=0.888
+
+bs=4
+  reference    (3, 4, 8)    reward=0.4975 speed=142.638
+  (3, 1, 4)    picked_by=['thompson_sampling']
+    reward=0.4177 (vs reference -0.0798)  speed=129.574 util=0.912
+  (5, 4, 16)   picked_by=['gbt']
+    reward=0.4290 (vs reference -0.0684)  speed=134.803 util=0.992
+
+bs=8
+  reference    (3, 4, 8)    reward=0.4653 speed=134.214
+  (3, 2, 4)    picked_by=['linucb']
+    reward=0.4113 (vs reference -0.0540)  speed=125.921 util=0.927
+  (1, 1, 2)    picked_by=['thompson_sampling']
+    reward=0.3413 (vs reference -0.1240)  speed=116.676 util=0.894
+
+bs=16
+  reference    (3, 4, 8)    reward=0.2945 speed=113.417
+  (3, 2, 4)    picked_by=['lookup_table', 'linucb', 'doubly_robust']
+    reward=0.3855 (vs reference +0.0910)  speed=117.784 util=0.952
+  (1, 4, 2)    picked_by=['thompson_sampling']
+    reward=0.2971 (vs reference +0.0026)  speed=107.542 util=0.909
+  (5, 2, 8)    picked_by=['gbt']
+    reward=0.2555 (vs reference -0.0391)  speed=102.643 util=0.972
