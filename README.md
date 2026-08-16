@@ -165,6 +165,12 @@ reference re-measured fresh per batch size:
 | bcq | 0.5323 | 0.0000 | 0.0000 | 0.0000 | 0.1331 | -0.3143 |
 | cql | 0.4483 | 0.0000 | 0.0000 | 0.0000 | 0.1121 | -0.3353 |
 
+![Live throughput per algorithm's pick, per batch size, with the (steps, topk, draft) combo labeled above each bar](RL/algos/results/tps_overview.png)
+
+At `bs=16`, `(3,2,4)` isn't just the better energy-band pick -- it's also
+**faster** than the reference (117.8 vs 113.4 tok/s), since the reference
+overshoots into thermal throttling under sustained load at that batch size.
+
 - **lookup_table, doubly_robust, and linucb all independently rediscover the
   MLP bandit's exact `bs=16` pick**, `(3,2,4)`, at a fraction of the training
   cost -- strong evidence it's a real property of the data.
