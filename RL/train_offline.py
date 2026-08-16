@@ -49,7 +49,7 @@ def state_features(row):
     return [
         row["batch_size"] / 8.0,
         (row.get("gpu_temp_c_before") or 40.0) / 100.0,
-        (row.get("gpu_mem_used_mb") or 0.0) / 81920.0,
+        (row.get("gpu_mem_used_mb") or 0.0) / 8192.0,
         (row.get("gpu_util_pct") or 0.0) / 100.0,
     ]
 
