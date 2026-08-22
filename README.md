@@ -201,4 +201,20 @@ overshoots into thermal throttling under sustained load at that batch size.
 Raw per-config live results: `RL/algos/results/live_validate.jsonl` /
 `live_validate.log`. Per-algorithm picks: `RL/algos/results/picks.json`.
 
+## Quality check -- does speculative decoding cost accuracy?
+
+Live-measured on the same GPU: 8-shot CoT GSM8K, pass@8 (50 questions x 8
+samples/question at temperature=0.7/top_p=0.95), and IFEval (150 prompts,
+greedy), chat template applied, `lm_eval`'s `sglang-generate` backend
+hitting a real sglang server per config (`RL/quality_benchmark.py`):
+
+| config | steps/topk/draft | gsm8k pass@8 | ifeval prompt-strict | ifeval inst-strict | speed_tok_s | avg power | energy |
+|---|---|---|---|---|---|---|---|
+| no_spec | 0/0/0 | 0.76 | 0.40 | 0.5546 | 84.9 | 65.5W | 6188J |
+| chosen, bs 1/4/8 | 3/4/8 | 0.76 | 0.40 | 0.5546 | 100.7 | 67.7W | 6450J |
+| chosen, bs 16 | 3/2/4 | 0.78 | 0.40 | 0.5504 | 103.9 | 65.1W | 5947J |
+
+Quality is unchanged (identical or within sampling noise) at both chosen
+configs relative to `no_spec`, while throughput improves ~19-22%.
+
 Would love to contribute and get the correct guidance.
