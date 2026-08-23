@@ -41,7 +41,7 @@ PROMPTS = [
 OUTPUT_TOKENS = 512
 
 
-def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction):
+def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction, log_path=None, allow_auto_truncate=False):
     cmd = [
         sys.executable, "-m", "sglang.launch_server",
         "--model-path", target,
@@ -57,6 +57,14 @@ def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction)
         "--dtype", "float16",
         "--log-level", "warning",
     ]
+    if allow_auto_truncate:
+        # Without this, a request whose prompt exceeds the max context length
+        # crashes the scheduler process outright (TypeError on a None
+        # max_new_tokens in the abort path) instead of erroring cleanly --
+        # hit by long agentic transcripts (e.g. Harbor/Terminus 2 sessions)
+        # that don't set an explicit max_tokens. sglang's own error message
+        # names this flag as the fix.
+        cmd += ["--allow-auto-truncate"]
     if steps > 0:
         cmd += [
             "--speculative-algorithm", "EAGLE3",
@@ -74,7 +82,8 @@ def launch_server(target, draft, bs, steps, topk, num_draft, port, mem_fraction)
     # The EAGLE3 draft head declares max_position_embeddings=2048.
     env["SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN"] = "1"
 
-    return subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    out = open(log_path, "w") if log_path else subprocess.DEVNULL
+    return subprocess.Popen(cmd, env=env, stdout=out, stderr=subprocess.STDOUT)
 
 
 def wait_for_server(port, timeout, proc):

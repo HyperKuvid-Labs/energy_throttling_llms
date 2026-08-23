@@ -217,4 +217,105 @@ hitting a real sglang server per config (`RL/quality_benchmark.py`):
 Quality is unchanged (identical or within sampling noise) at both chosen
 configs relative to `no_spec`, while throughput improves ~19-22%.
 
+## Agentic tool-use tasks -- does speculative decoding still help? (Terminal-Bench pilot)
+
+The quality check above uses fixed-length text generation. Agentic,
+multi-turn tool-use tasks are a different workload -- short, varied
+completions interleaved with tool output the model didn't write -- so
+they were checked separately with a small pilot on
+[Terminal-Bench 2.0](https://www.tbench.ai/) via the
+[Harbor](https://github.com/laude-institute/harbor) framework. Same GPU,
+same `unsloth/Llama-3.2-1B-Instruct` + EAGLE3 draft pair, Terminus 2 as
+the reference agent talking to the local sglang server. 2 tasks from
+`terminal-bench-sample@2.0` (`regex-log`, `log-summary-date-ranges`) x 3
+configs (`no_spec`, `chosen`, `chosen_bs16`), 1 trial each, Harbor's
+900s-per-trial agent timeout in force:
+
+| config | task | success | tok/s | output tokens | duration | accept len | avg power | GPU util |
+|---|---|---|---|---|---|---|---|---|
+| no_spec | regex-log | fail | 46.4 | 41,783 | 900.0s (timeout) | 1.000 | 69.9W | 84.2% |
+| no_spec | log-summary-date-ranges | fail | 88.9 | 1,859 | 20.9s | 1.000 | 74.2W | 93.3% |
+| chosen | regex-log | fail | 46.4 | 41,783 | 900.0s (timeout) | 1.168 | 73.3W | 93.6% |
+| chosen | log-summary-date-ranges | fail | 51.0 | 45,902 | 900.0s (timeout) | 1.168 | 72.7W | 95.0% |
+| chosen_bs16 | regex-log | fail | 0.5 | 474 | 900.0s (timeout) | 1.199 | 68.9W | 95.0% |
+| chosen_bs16 | log-summary-date-ranges | fail | 6.2 | 5,562 | 900.0s (timeout) | 1.199 | 68.8W | 95.1% |
+
+None of the 6 trials solved its task -- a capability ceiling of the 1B
+model on multi-turn agentic tasks at this pilot's size, not a
+spec-decoding effect. As on an earlier SWE-bench Lite pilot,
+`avg_spec_accept_length` barely clears 1.0 (1.17-1.20) here too --
+agentic/tool-use prompts give EAGLE3's draft head little to work with,
+so the extra verification overhead buys almost nothing.
+
+### `chosen_bs16` -- a distinct runaway-generation failure mode
+
+Digging into per-trial traces (`agent/trajectory.json`,
+`api_request_times_msec` in Harbor's `result.json`) turned up something
+`chosen` and `no_spec` didn't show: both `chosen_bs16`
+(`steps=3, topk=2, draft=4`) trials burned nearly their entire 900s
+budget inside a single LLM call that never returned, GPU pegged at
+~95% the whole time -- an actual non-terminating generation, not a
+network stall:
+
+| config | task | completed calls | time in completed calls | time in the stuck tail call | GPU util |
+|---|---|---|---|---|---|
+| no_spec | regex-log | 74 | 578.6s | 311.3s | 84.2% |
+| chosen | regex-log | 74 | 774.5s | 115.2s | 93.6% |
+| chosen | log-summary-date-ranges | 63 | 882.5s | 10.6s | 95.0% |
+| **chosen_bs16** | **regex-log** | 3 | 3.5s | **895.0s** | 95.0% |
+| **chosen_bs16** | **log-summary-date-ranges** | 7 | 45.8s | **853.4s** | 95.1% |
+
+Both `chosen_bs16` trials hit the same deterministic loop first: the
+model emits a correct-content JSON response with a genuine escaping bug
+(`Invalid \escape` at the identical character offset on every retry,
+since temperature=0), gets rejected by Terminus 2's parser, degrades
+into two turns of `"I can't help with this request."`, retries -- same
+bug, same offset -- and eventually one call in that cycle just never
+comes back. `chosen` and `no_spec` hit the same 900s wall, but by
+grinding through dozens of real (if slow and unproductive) turns rather
+than stalling on one.
+
+Only 2 tasks, so not conclusive, but a real, config-specific failure
+mode on top of the low-accept-length effect above: `chosen_bs16`'s
+narrower topk/draft (2/4, vs `chosen`'s 4/8) looks more prone to
+triggering a runaway non-terminating generation than the wider config.
+
+Pilot orchestrator: `RL/terminalbench_pilot.py` (`prepare`/`run`/`report`
+subcommands). Harbor's job outputs and the continuous GPU telemetry
+sampler are kept outside the repo, since Harbor pulls its own per-task
+Docker images -- not committed.
+
+## Multi-turn conversational agent tasks (τ²-bench pilot)
+
+Terminal-Bench's tool-heavy loop and SWE-bench's long patch-generation
+prompts both push past the EAGLE3 draft head's effective context, which
+is most of why spec-decoding's edge disappeared there. To check a
+workload closer to what the sweep's chosen params were tuned on, we ran
+a small pilot on [τ²-bench](https://github.com/sierra-research/tau2-bench)
+(Sierra Research) -- a customer-service agent benchmark with an LLM
+playing the user, shorter multi-turn exchanges than Terminal-Bench's
+tool-call loop. Same GPU, same `unsloth/Llama-3.2-1B-Instruct` + EAGLE3
+draft pair, `retail` domain, agent talking to the local sglang server
+via LiteLLM's OpenAI-compatible client, user-simulator via OpenRouter
+(`gpt-4o-mini`). 3 configs (`no_spec`, `chosen`, `chosen_bs16`) on a
+small pilot task set, 1 trial each:
+
+| config | tok/s | GPU util | avg power | accept len |
+|---|---|---|---|---|
+| no_spec | 41.6 | 37.7% | 50.2W | 1.00 |
+| chosen | 37.8 | 44.6% | 49.2W | 1.14 |
+| chosen_bs16 | 44.5 | 63.2% | 51.4W | 1.10 |
+
+Same pattern as Terminal-Bench and SWE-bench: `avg_spec_accept_length`
+barely rises above 1.0 even on these shorter, more conversational
+turns, and `chosen` is actually slower than `no_spec` here despite the
+higher accept length -- the sweep grid's picks were tuned for batched,
+fixed-length synthetic decoding, not single-request agentic turns.
+`chosen_bs16` edges out on tok/s but at a real GPU-utilization cost.
+
+Pilot orchestrator: `RL/tau2bench_pilot.py` (`prepare`/`run`/`report`
+subcommands). τ²-bench itself, and its results/telemetry, are kept
+outside the repo (cloned and `uv sync`'d separately), same as Harbor
+for Terminal-Bench.
+
 Would love to contribute and get the correct guidance.

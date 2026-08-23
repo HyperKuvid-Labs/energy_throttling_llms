@@ -21,7 +21,44 @@ Hardware: NVIDIA GeForce RTX 4060 Laptop GPU (8GB).
 
 ## Files
 
-- `eagle3_energy_sweep.jsonl` — one row per `(batch_size, steps, topk, num_draft_tokens, repeat)` config, 3 repeats of the full grid (batch sizes 1, 4, 8, 16).
+- `eagle3_energy_sweep.jsonl` — one row per `(batch_size, steps, topk, num_draft_tokens, repeat)` config, 3 repeats of the full grid (batch sizes 1, 4, 8, 16), plus 12 agentic pilot-trial rows appended at the end (see below).
+
+## Agentic pilot traces (rows 228-239)
+
+228-239 are not part of the synthetic sweep grid. They're individual trials from two
+agentic pilots that checked whether the sweep's speculative-decoding picks still help
+on real tool-use tasks: a 2-instance SWE-bench Lite patch-generation pilot and a
+2-task Terminal-Bench (Harbor, Terminus 2 agent) pilot, each run at 3 configs
+(`no_spec`, `chosen`=(3,4,8), `chosen_bs16`=(3,2,4)). `speed_source` is
+`"swebench_pilot"` or `"terminalbench_pilot"` for these rows (vs. `"step_time"` for
+the sweep grid).
+
+These measure a fundamentally different thing than the sweep grid: end-to-end
+wall-clock of a multi-turn tool-use agent session (or, for SWE-bench, a single
+long-context patch-generation request), dominated by non-LLM overhead — tool
+execution, JSON-parse retries, and in one case (`chosen_bs16` on Terminal-Bench's
+`regex-log` task) a runaway generation loop that burned ~895s of a 900s timeout on a
+single stuck call. That is not comparable to the sweep's controlled, fixed-length
+synthetic decode throughput.
+
+To keep them from corrupting anything downstream: `is_baseline` is always `false`
+for these rows (even the `no_spec` ones), and `error` is always a non-null string
+(`"agentic_pilot_trace: ..."`) rather than a real failure. Both fields are set this
+way *by design*, not because the underlying trial errored — this repo's training
+code (`RL/train_offline.py`, `RL/algos/common.py`) already skips any row with a
+truthy `error` and uses `is_baseline` rows to compute the per-`batch_size` reference
+throughput used to normalize every reward, so these two fields are the mechanism
+that excludes the 12 rows from bandit/offline-RL training while still keeping the
+real measured numbers (tok/s, energy, GPU stats, `avg_spec_accept_length`) in the
+file for anyone doing manual analysis. `batch_size` is `1` for all 12 rows — that's
+the actual concurrency both pilots ran at (one trial at a time), even for the
+`chosen_bs16` config whose name refers to the sweep-grid batch size it was chosen
+at, not the concurrency it was tested at here. `gpu_temp_c_before`/`gpu_mem_used_mb`/
+`gpu_throttling` are `null` for the Terminal-Bench rows (that pilot's telemetry is a
+continuous sampler segmented by trial window, which doesn't produce a distinct
+"before" snapshot or capture memory/throttling in its current report format); the
+SWE-bench rows have all of these directly, from before/after NVML snapshots
+bracketing each request.
 
 ## Retries
 
