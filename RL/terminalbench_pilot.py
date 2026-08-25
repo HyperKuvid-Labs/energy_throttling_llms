@@ -57,6 +57,14 @@ DEFAULT_TARGET = "unsloth/Llama-3.2-1B-Instruct"
 DEFAULT_DRAFT = "rescommons/SpecForge-EAGLE3-Llama-3.2-1B-Instruct"
 DEFAULT_DATASET = "terminal-bench-sample@2.0"
 DEFAULT_TASKS = ["regex-log", "log-summary-date-ranges"]
+# Real limits for the local sglang server, so Terminus 2 compacts instead of
+# overflowing. max_input_tokens matches the server's max_req_input_len.
+MODEL_INFO = {
+    "max_input_tokens": 57760,
+    "max_output_tokens": 4096,
+    "input_cost_per_token": 0.0,
+    "output_cost_per_token": 0.0,
+}
 DEFAULT_ROOT = os.environ.get("TB_PILOT_ROOT", "/tmp/terminalbench-pilot")
 DEFAULT_HARBOR_BIN = os.environ.get(
     "HARBOR_BIN", "/tmp/terminal-bench-eval-20260823/bin/harbor"
@@ -300,6 +308,11 @@ def build_harbor_command(args: argparse.Namespace, config: dict[str, Any], root:
         "-m", model_string,
         "--ak", f"api_base={api_base}",
         "--ak", "temperature=0",
+        # Without this, LiteLLM can't map the model and Terminus 2 falls back to a
+        # 1,000,000-token context limit, so it never compacts. The prompt then grows
+        # past the server's real max_req_input_len (57,760) and every request gets
+        # truncated server-side until the task stalls out.
+        "--ak", f"model_info={json.dumps(MODEL_INFO)}",
         "-n", "1",
         "-o", str(harbor_jobs_dir(root, config["tag"])),
         "--job-name", config["tag"],
