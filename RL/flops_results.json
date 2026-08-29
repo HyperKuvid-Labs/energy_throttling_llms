@@ -1,0 +1,83 @@
+{
+  "method": "algorithmic dense-linear FLOPs; multiply-add counts as 2 FLOPs",
+  "speculative_cycle_formula": "D*T + A*(C+F) + H + K*(S-1)*(C+H)",
+  "formula_terms": {
+    "D": "num_draft_tokens verified by the target per cycle",
+    "T": "target FLOPs per verified token",
+    "A": "measured accepted output tokens per cycle",
+    "C": "EAGLE3 transformer-core FLOPs per token",
+    "F": "EAGLE3 target-hidden-state fusion FLOPs per extended token",
+    "H": "EAGLE3 vocabulary-head FLOPs per evaluation",
+    "K": "speculative_eagle_topk",
+    "S": "speculative_num_steps"
+  },
+  "excluded": [
+    "attention score/value matmuls",
+    "normalization and activation elementwise operations",
+    "sampling, top-k, and speculative tree kernels",
+    "prompt prefill"
+  ],
+  "acceptance_length_source": "full quality run reported in README.md",
+  "target_model": "unsloth/Llama-3.2-1B-Instruct",
+  "draft_model": "rescommons/SpecForge-EAGLE3-Llama-3.2-1B-Instruct",
+  "output_tokens_per_request": 512,
+  "component_gflops": {
+    "target_per_verified_token": 2.471493632,
+    "draft_core_per_token": 0.134217728,
+    "draft_target_hidden_fusion_per_extended_token": 0.025165824,
+    "draft_vocabulary_head_per_evaluation": 0.131072
+  },
+  "results": [
+    {
+      "config": [
+        0,
+        0,
+        0
+      ],
+      "acceptance_length": 1.0,
+      "target_tokens_per_cycle": 1.0,
+      "draft_extend_tokens_per_cycle": 0.0,
+      "draft_expand_tokens_per_cycle": 0.0,
+      "estimated_dense_linear_gflops_per_cycle": 2.471493632,
+      "estimated_dense_linear_gflops_per_output_token": 2.471493632,
+      "estimated_dense_linear_tflops_per_request": 1.265404739584,
+      "name": "no_spec",
+      "flops_ratio_vs_no_spec": 1.0,
+      "flops_reduction_vs_3_4_8_pct": 73.25801456001795
+    },
+    {
+      "config": [
+        3,
+        2,
+        4
+      ],
+      "acceptance_length": 2.129,
+      "target_tokens_per_cycle": 4.0,
+      "draft_extend_tokens_per_cycle": 2.129,
+      "draft_expand_tokens_per_cycle": 4.0,
+      "estimated_dense_linear_gflops_per_cycle": 11.417533022208,
+      "estimated_dense_linear_gflops_per_output_token": 5.362861917429779,
+      "estimated_dense_linear_tflops_per_request": 2.745785301724047,
+      "name": "chosen_3_2_4",
+      "flops_ratio_vs_no_spec": 2.169887005976222,
+      "flops_reduction_vs_3_4_8_pct": 41.97291327977764
+    },
+    {
+      "config": [
+        3,
+        4,
+        8
+      ],
+      "acceptance_length": 2.425,
+      "target_tokens_per_cycle": 8.0,
+      "draft_extend_tokens_per_cycle": 2.425,
+      "draft_expand_tokens_per_cycle": 8.0,
+      "estimated_dense_linear_gflops_per_cycle": 22.411843993599998,
+      "estimated_dense_linear_gflops_per_output_token": 9.24199752313402,
+      "estimated_dense_linear_tflops_per_request": 4.7319027318446185,
+      "name": "chosen_3_4_8",
+      "flops_ratio_vs_no_spec": 3.739438129021252,
+      "flops_reduction_vs_3_4_8_pct": 0.0
+    }
+  ]
+}

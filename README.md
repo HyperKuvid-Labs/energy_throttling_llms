@@ -217,6 +217,26 @@ hitting a real sglang server per config (`RL/quality_benchmark.py`):
 Quality is unchanged (identical or within sampling noise) at both chosen
 configs relative to `no_spec`, while throughput improves ~19-22%.
 
+### Decode FLOPs
+
+`RL/flops_benchmark.py` combines the cached target and EAGLE3 architecture
+configs with the measured acceptance lengths above to estimate dense-linear
+decode FLOPs. One multiply-add counts as two FLOPs; the 512-token totals
+exclude prompt prefill, attention score/value matmuls, normalization,
+activations, sampling, and speculative-tree kernels.
+
+| config | accept length | GFLOPs/output token | TFLOPs/512 output tokens | vs no-spec |
+|---|---:|---:|---:|---:|
+| no_spec `(0,0,0)` | 1.000 | **2.471** | **1.265** | 1.00x |
+| chosen, bs 16 `(3,2,4)` | 2.129 | **5.363** | **2.746** | 2.17x |
+| chosen, bs 1/4/8 `(3,4,8)` | 2.425 | **9.242** | **4.732** | 3.74x |
+
+Speculative decoding spends more parallel compute to reduce wall-clock decode
+time. The `bs=16` choice `(3,2,4)` uses **42.0% fewer estimated FLOPs** than
+`(3,4,8)`, while the quality run above also measures it as the faster of the
+two. Regenerate the table and `RL/flops_results.json` with
+`python3 RL/flops_benchmark.py`.
+
 ## Two bugs invalidated the first agentic pilots
 
 The three agentic pilots below (Terminal-Bench, SWE-bench Lite, τ²-bench)
