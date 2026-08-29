@@ -14,6 +14,9 @@ speculation just costs energy for nothing.
 [![🤗 Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-eagle3--speculative--decoding--energy--sweep-FFD21E)](https://huggingface.co/datasets/Pradheep1647/eagle3-speculative-decoding-energy-sweep)
 [![🤗 Models](https://img.shields.io/badge/%F0%9F%A4%97%20Models-eagle3--speculative--decoding--policy-FFD21E)](https://huggingface.co/Pradheep1647/eagle3-speculative-decoding-policy)
 
+Read the accompanying blog on my site:
+[**Energy-Aware EAGLE-3 on 8GB: 12–17% More TPS Than SGLang Defaults**](https://www.pradheep.dev/blogs/energy-band).
+
 ## The recipe
 
 Live-measured on an RTX 4060 Laptop GPU (8GB), `unsloth/Llama-3.2-1B-Instruct`
