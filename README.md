@@ -29,20 +29,20 @@ Live-measured on an RTX 4060 Laptop GPU (8GB), `unsloth/Llama-3.2-1B-Instruct`
 | 8  | 3 | 4 | 8 | 0.4653 | same config |
 | 16 | 3 | 2 | 4 | 0.3855 | **+0.091**, avoids overshooting the band |
 
-`bs=16` is the only case worth changing the launch flags for -- and four
+`bs=16` is the only case worth changing the launch flags for, and four
 independent methods (MLP bandit, lookup table, LinUCB, doubly robust) all
 converge on the same `(3,2,4)` pick.
 
 ## Model I/O
 
-**Input** -- 4-dim state, read from GPU telemetry after a config runs (not a
+**Input**: 4-dim state, read from GPU telemetry after a config runs (not a
 live pre-decision sensor read, see caveat below):
 
 ```
 [ batch_size / 8.0, gpu_temp_c_before / 100.0, gpu_mem_used_mb / 8192.0, gpu_util_pct / 100.0 ]
 ```
 
-**Output** -- an index into a fixed `ActionSpace` (`RL/policy.py`), decoded to
+**Output**: an index into a fixed `ActionSpace` (`RL/policy.py`), decoded to
 `--speculative-num-steps`, `--speculative-eagle-topk`,
 `--speculative-num-draft-tokens`.
 
@@ -51,7 +51,7 @@ Grid before filtering: `steps ∈ {0,1,3,5} × topk ∈ {0,1,2,4} × draft ∈
 feature, not part of the action). Validity constraints, from sglang 0.5.2
 source:
 
-1. `steps * topk + 1 >= num_draft_tokens` -- surplus draft tokens can never
+1. `steps * topk + 1 >= num_draft_tokens`, since surplus draft tokens can never
    be filled.
 2. `topk == 1` forces `num_draft_tokens = steps + 1` server-side, collapsing
    two nominal configs into one.
@@ -72,7 +72,7 @@ the physical GPU. The sweep runs once, caches to JSONL, and every algorithm
 below trains against that cache, free, on CPU.
 
 Per config: launch sglang (target + draft both forced to `dtype=float16`,
-since EAGLE3's draft head ships fp16 and the target ships bf16 -- a mismatch
+since EAGLE3's draft head ships fp16 and the target ships bf16, a mismatch
 kills CUDA graph capture) → poll `/health` → warmup batch → snapshot energy
 (`nvmlDeviceGetTotalEnergyConsumption`) and telemetry → fire
 `max(num_prompts, batch_size)` requests at concurrency = batch_size against 4
@@ -85,7 +85,7 @@ Reward (`RL/reward.py`), computed offline from the cached row:
 
 - `energy_utilization = avg_power_watts / power_limit_watts` (80W cap)
 - `band_score`: 1.0 inside `[0.95, 0.98]`, linear ramp below, 10x-slope falloff above
-- `throughput_score = clip((speed / baseline_speed - 1) / 2, 0, 1)` -- a
+- `throughput_score = clip((speed / baseline_speed - 1) / 2, 0, 1)`, a
   config scored against itself is always exactly 0 here, by construction
 - `reward = (band_score^w * throughput_score^(1-w)) * thermal_multiplier`
   (geometric mean, `w=0.5`), then a penalty for `>75°C` (0.8x), `>80°C`
@@ -98,22 +98,22 @@ error row. Full details and schema on the [dataset card](https://huggingface.co/
 
 ## Results
 
-![Live-validated results across batch sizes -- reward per algorithm, and the energy-band mechanism at bs=16](RL/algos/results/results_overview.png)
+![Live-validated results across batch sizes: reward per algorithm, and the energy-band mechanism at bs=16](RL/algos/results/results_overview.png)
 
-### DDPG -- never produced a policy to validate
+### DDPG: never produced a policy to validate
 
 The original design (`RL/rl.py`): a Fast Actor emitting three sigmoid-scaled
 continuous scalars, `torch.round`ed into the three integers, a Target Actor
 for soft-update stability, a Q-Critic on `[state, action]`. No live
-validation table -- there was never a trained policy:
+validation table, because there was never a trained policy:
 
 | algorithm | bs=1 | bs=4 | bs=8 | bs=16 | avg reward | status |
 |---|---|---|---|---|---|---|
-| ddpg | -- | -- | -- | -- | -- | never trained |
+| ddpg | n/a | n/a | n/a | n/a | n/a | never trained |
 
 Two independent, structural reasons:
 
-1. `round()` has zero gradient almost everywhere -- backprop through the
+1. `round()` has zero gradient almost everywhere, so backprop through the
    actor produced `grad: tensor([[0.]])`, so it never updated.
 2. `profiler(eagle_3_sd)(...)` discarded its return value, so the reward it
    trained against was a hardcoded constant `0.9396` regardless of action.
@@ -122,11 +122,11 @@ Separately, only 75.4% of the continuous box (`steps ∈ [1,32] × topk ∈
 [1,10] × draft ∈ [1,64]`) satisfies sglang's own validity constraints.
 `RL/rl.py` is kept as a reference for what didn't work, not run for results.
 
-### MLP contextual bandit -- current design, live A/B validated
+### MLP contextual bandit: current design, live A/B validated
 
 Enumerates the legal triples into the 19-action `ActionSpace`, trains a
 `QNetwork` for one Q-value per action, masks illegal actions to `-inf`,
-picks greedily. One-step contextual bandit (`gamma=0`) -- the sweep captures
+picks greedily. One-step contextual bandit (`gamma=0`), since the sweep captures
 no state transition, so there's nothing for a discount factor to do.
 
 Validated live 4 times: once with the trained policy, three more retrained
@@ -145,12 +145,12 @@ reference: mean **0.2585**, std **0.097**  |  policy: mean **0.3898**, std
 **0.0064**  |  mean delta **+0.131**
 
 Visible directly in telemetry: the reference config's energy utilization sat
-at **0.997, 1.005, 1.007** across the three seed trials -- consistently over
+at **0.997, 1.005, 1.007** across the three seed trials, consistently over
 the band, worsening as the GPU heated up. The policy's pick landed at
-**0.966, 0.974, 0.979** every time -- inside the band, higher reward on
+**0.966, 0.974, 0.979** every time: inside the band, higher reward on
 average *and* 15x more stable.
 
-### Seven alternative algorithms -- live validated, one paired trial
+### Seven alternative algorithms: live validated, one paired trial
 
 `RL/algos/` builds and live-validates every other algorithm applicable to
 this problem shape (small discrete action space, one reward per pull, no
@@ -159,7 +159,7 @@ reference re-measured fresh per batch size:
 
 | algorithm | bs=1 | bs=4 | bs=8 | bs=16 | avg reward | vs reference |
 |---|---|---|---|---|---|---|
-| *(reference, fixed)* | 0.5323 | 0.4975 | 0.4653 | 0.2945 | 0.4474 | -- |
+| *(reference, fixed)* | 0.5323 | 0.4975 | 0.4653 | 0.2945 | 0.4474 | n/a |
 | lookup_table | 0.5323 | 0.4975 | 0.4653 | 0.3855 | **0.4702** | **+0.0228** |
 | doubly_robust | 0.5323 | 0.4975 | 0.4653 | 0.3855 | **0.4702** | **+0.0228** |
 | linucb | 0.5323 | 0.4975 | 0.4113 | 0.3855 | 0.4567 | +0.0093 |
@@ -170,19 +170,19 @@ reference re-measured fresh per batch size:
 
 ![Live throughput per algorithm's pick, per batch size, with the (steps, topk, draft) combo labeled above each bar](RL/algos/results/tps_overview.png)
 
-At `bs=16`, `(3,2,4)` isn't just the better energy-band pick -- it's also
+At `bs=16`, `(3,2,4)` is not merely the better energy-band pick. It is also
 **faster** than the reference (117.8 vs 113.4 tok/s), since the reference
 overshoots into thermal throttling under sustained load at that batch size.
 
 - **lookup_table, doubly_robust, and linucb all independently rediscover the
   MLP bandit's exact `bs=16` pick**, `(3,2,4)`, at a fraction of the training
-  cost -- strong evidence it's a real property of the data.
+  cost, which is strong evidence it is a real property of the data.
 - **cql and bcq collapsed onto the trivial non-speculative baseline
   `(0,0,0)`** at `bs=4,8,16` (reward 0 by construction, not measurement).
   Root cause is default hyperparameters far too conservative for this
   reward scale (CQL's `alpha=1.0`, BCQ's `threshold=0.3`), not a bug.
   Reported as-is rather than retuned.
-- Discrete SAC/DQN weren't run -- they only make sense once configs switch
+- Discrete SAC/DQN were not run. They only make sense once configs switch
   *mid-session* against evolving thermal state (`gamma != 0`), which needs a
   genuinely different data collection pass: a live session hot-swapping
   speculative params and logging real `(state, action, reward, next_state)`
@@ -204,7 +204,43 @@ overshoots into thermal throttling under sustained load at that batch size.
 Raw per-config live results: `RL/algos/results/live_validate.jsonl` /
 `live_validate.log`. Per-algorithm picks: `RL/algos/results/picks.json`.
 
-## Quality check -- does speculative decoding cost accuracy?
+### Training curves
+
+![Per-epoch offline training loss for the four gradient-based algorithms, plus fit quality for the five closed-form ones](RL/algos/results/training_curves.png)
+
+Only 4 of the 9 algorithms have an iterative loss to plot. The other five
+are closed-form or a single tree fit. A lookup table is a group-by mean,
+LinUCB and Thompson sampling solve the same ridge system directly, doubly
+robust fits one OLS direct model, and GBT boosts 100 trees in one call. The
+right panel therefore reports how well each fits the logged rewards rather
+than inventing a curve for them. Doubly robust's low `R^2` is that OLS direct
+model, kept deliberately smooth so the importance-weighted correction has
+something left to correct.
+
+The two panels are split by scale, not by algorithm family: the
+reward-regression losses sit around `1e-4` while the conservative and
+cloning losses sit around 2-3, so one shared axis would flatten the
+former into the floor.
+
+Worth reading against the results table above: **CQL's TD term is already
+near zero from the first epochs** (0.0039 by epoch 10) **while its total
+loss is 98% conservative penalty at epoch 600, and still falling.** That is the
+`alpha=1.0` problem visible directly in the curve: the penalty, not the
+reward fit, is what the optimizer spends its capacity on, which is why CQL
+lands on `(0,0,0)` at three of four batch sizes. BCQ's behaviour-cloning
+loss is the same story from the other side: it ends at 2.74 against
+`ln(19) = 2.94` for a uniform prior over the 19 actions, barely better than
+guessing, because the sweep enumerates every action per batch size and
+leaves no skewed logging policy for it to clone.
+
+Regenerate with `python3 RL/algos/results/plot_training_curves.py`. It
+re-runs the four gradient loops with the same seeds, hyperparameters and
+loss functions as the original scripts, recording every epoch rather than
+every hundredth; the checkpoints it reproduces match the captured logs in
+`RL/algos/results/training_logs/` exactly. Those logs are the stdout of
+one clean run of all nine scripts.
+
+## Quality check: does speculative decoding cost accuracy?
 
 Live-measured on the same GPU: 8-shot CoT GSM8K, pass@8 (50 questions x 8
 samples/question at temperature=0.7/top_p=0.95), and IFEval (150 prompts,
@@ -244,8 +280,9 @@ two. Regenerate the table and `RL/flops_results.json` with
 
 The three agentic pilots below (Terminal-Bench, SWE-bench Lite, τ²-bench)
 were first run with two defects that both suppressed speculative
-decoding, and the original conclusion -- "spec decoding doesn't help on
-agentic workloads" -- was an artifact of them, not a finding. Both are
+decoding. The original conclusion, that speculative decoding does not help
+on agentic workloads, was an artifact of those defects rather than a
+finding. Both are
 fixed; every "after" number on this page is from a re-run on the same
 GPU.
 
@@ -264,8 +301,8 @@ So the draft head applied a completely different positional encoding
 than the target it was supposed to predict for. Its proposals decorrelate
 from the target's distribution as soon as position matters, the verifier
 rejects nearly all of them, and `avg_spec_accept_length` collapses toward
-1.0 -- which is exactly "spec decoding is on but doing nothing", plus the
-draft-forward overhead. Fixed by copying the target's `rope_theta` and
+1.0, which is the signature of speculation being enabled but doing no
+useful work, with the draft-forward pass still charged as overhead. Fixed by copying the target's `rope_theta` and
 `rope_scaling` into the draft config (weights untouched, no retraining):
 
 | | `rope_theta` | `rope_scaling` |
@@ -283,15 +320,23 @@ Effect on accept length, same tasks, same GPU:
 | τ²-bench | chosen (3/4/8) | 1.14 | **2.80** |
 | τ²-bench | chosen_bs16 (3/2/4) | 1.10 | **2.56** |
 
+One label note that applies everywhere `chosen_bs16` appears in this
+README: `(3, 2, 4)` was the sweep's batch-16 pick at the time these pilots
+ran. A later fix to the sweep pipeline changed the batch-16 recommendation
+to `(3, 4, 8)` -- the same tuple as `chosen` -- so `chosen_bs16` throughout
+this document is a historical data point measured against a
+since-superseded pick, not a currently-recommended alternative to
+`chosen`.
+
 Reported upstream as SpecForge issue #249. Note the fixed-length quality
-benchmark above was *also* run on the unpatched draft -- its ~19-22%
+benchmark above was *also* run on the unpatched draft, so its ~19-22%
 speedup is a floor, not a ceiling.
 
 ### Bug 2: Harbor's 1M-token context fallback (Terminal-Bench only)
 
 `harbor/llms/lite_llm.py`'s `get_model_context_limit()` falls back to
 `fallback_context_limit = 1_000_000` for any model LiteLLM doesn't
-recognize -- which includes every local OpenAI-compatible server. Terminus 2
+recognize, which includes every local OpenAI-compatible server. Terminus 2
 sized its compaction against 1M tokens, so it never compacted, and prompts
 ran straight past sglang's `max_req_input_len` of 57,760. The previous run
 logged **315 server-side truncations**, with prompts reaching 81,947 tokens;
@@ -314,11 +359,11 @@ MODEL_INFO = {
 
 Re-run: 0 fallback-context warnings, **0 truncations**.
 
-## Agentic tool-use tasks -- does speculative decoding still help? (Terminal-Bench pilot)
+## Agentic tool-use tasks: does speculative decoding still help? (Terminal-Bench pilot)
 
 The quality check above uses fixed-length text generation. Agentic,
-multi-turn tool-use tasks are a different workload -- short, varied
-completions interleaved with tool output the model didn't write -- so
+multi-turn tool-use tasks are a different workload, consisting of short,
+varied completions interleaved with tool output the model did not write, so
 they were checked separately with a small pilot on
 [Terminal-Bench 2.0](https://www.tbench.ai/) via the
 [Harbor](https://github.com/laude-institute/harbor) framework. Same GPU,
@@ -326,7 +371,9 @@ same `unsloth/Llama-3.2-1B-Instruct` + EAGLE3 draft pair, Terminus 2 as
 the reference agent talking to the local sglang server. 2 tasks from
 `terminal-bench-sample@2.0` (`regex-log`, `log-summary-date-ranges`) x 3
 configs (`no_spec`, `chosen`, `chosen_bs16`), 1 trial each, Harbor's
-900s-per-trial agent timeout in force.
+900s-per-trial agent timeout in force. (`chosen_bs16`'s `(3,2,4)` predates
+a later fix to the sweep pipeline that moved the batch-16 pick to
+`(3,4,8)` -- see the label note in the RoPE-bug section above.)
 
 `tok/s` here is Harbor's wall-clock aggregate (output tokens / trial
 duration), so it includes Docker tool execution and agent-side parsing --
@@ -345,7 +392,7 @@ they're comparable to each other.
 Two things changed and one didn't.
 
 **The 0.5 tok/s figure was the RoPE bug.** `chosen_bs16 / regex-log` went
-from 474 output tokens in 900s to **84,859 tokens in 700s** -- a 240x
+from 474 output tokens in 900s to **84,859 tokens in 700s**, a 240x
 increase in delivered tokens. The "runaway non-terminating generation"
 this README previously described as a config-specific failure mode of
 `chosen_bs16` does not reproduce with the patched draft. That subsection
@@ -354,13 +401,13 @@ head, not a property of `(3,2,4)`.
 
 **Still no task solved.** Zero of the trials passed, before or after.
 That is the 1B model's capability ceiling on multi-turn agentic tasks and
-it is not a spec-decoding effect -- note that `no_spec / regex-log` hits
-the 900s `AgentTimeoutError` with speculative decoding entirely off and a
+it is not a spec-decoding effect. Note that `no_spec / regex-log` hits the
+900s `AgentTimeoutError` with speculative decoding entirely off and a
 correct context limit. The original text attributed Terminal-Bench's
 timeouts to speculation; the baseline fails identically, so that
 attribution was unsupported.
 
-### Both speculative legs OOM'd -- and one is unmeasurable
+### Both speculative legs OOM'd, and one is unmeasurable
 
 `mem_fraction_static 0.55` was carried over from the sweep without
 re-checking it against Terminal-Bench's much longer prompts. With a draft
@@ -374,25 +421,25 @@ The two legs failed differently:
 
 - **`chosen` (3/4/8) produced no data at all.** Its trajectories contain a
   single `user` step, `final_metrics` are all zero, and
-  `api_request_times_msec` is an **empty array** -- zero completed
+  `api_request_times_msec` is an **empty array**, indicating zero completed
   requests. Telemetry shows the GPU was 88% busy for 375s at 73.4W (29.9 kJ)
   inside a single `/v1/chat/completions` that never returned. At 8 draft
   tokens per step against ~27k-token prompts it exhausted the KV pool
   during the very first long generation. There is no completion-token count
   and no request duration, so **no throughput figure exists for `chosen`
-  here** -- only power and energy.
+  here**. Only power and energy are recoverable.
 - **`chosen_bs16` (3/2/4) survived 165 turns** on `regex-log` before dying
   the same way at 4 draft tokens, which is enough to measure properly.
 
 Neither leg reached the end-of-run `/get_server_info` call, so
-`avg_spec_accept_length` is **unavailable** for both -- the "after" column
-above is honestly blank, not 1.0.
+`avg_spec_accept_length` is **unavailable** for both, so the "after" column
+above is left blank rather than reported as 1.0.
 
 ### What the surviving `chosen_bs16` data shows
 
 Per-turn decode throughput, reconstructed from `agent/trajectory.json`
 timestamps and per-step token counts on `regex-log` (this *is* decode
-throughput -- tool-execution gaps excluded; a handful of turns at
+throughput, with tool-execution gaps excluded; a handful of turns at
 summarization boundaries carry a near-zero timestamp delta and are dropped):
 
 | config | turns | median tok/s | mean | p10 | p90 | aggregate |
@@ -435,7 +482,7 @@ Only 2 tasks and 1 trial each, so treat the magnitudes as indicative.
 Pilot orchestrator: `RL/terminalbench_pilot.py` (`prepare`/`run`/`report`
 subcommands). Harbor's job outputs and the continuous GPU telemetry
 sampler are kept outside the repo, since Harbor pulls its own per-task
-Docker images -- not committed.
+Docker images. They are not committed.
 
 ## Long patch-generation prompts (SWE-bench Lite pilot)
 
@@ -448,18 +495,76 @@ against a ~7.1-7.4k-token prompt:
 | chosen (3/4/8) | ~1.0 | **2.26** | 98.6 | 0.740 |
 | chosen_bs16 (3/2/4) | ~1.0 | **2.16** | 105.9 | **0.656** |
 
-Speculation is clearly working here after the fix -- ~1.3-1.4x throughput
-and ~31-39% less energy per token. The patches themselves are all
+(`chosen_bs16`'s `(3,2,4)` predates the sweep-pipeline fix that moved the
+batch-16 pick to `(3,4,8)` -- see the label note in the RoPE-bug section
+above.)
+
+Speculation is clearly working here after the fix, giving ~1.3-1.4x
+throughput and ~31-39% less energy per token. The patches themselves are all
 `model_invalid_fallback`: the 1B model does not emit a well-formed diff for
 these instances, so `resolved` is unmeasurable. That is a capability
 ceiling, and it is unchanged by the fix.
+
+### Does this hold at 8B? (same task pair, bigger target)
+
+Same setup, scaled to `NousResearch/Meta-Llama-3.1-8B-Instruct` +
+`jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B` (RoPE-patched, same fix as
+above), same 2 astropy instances, same three configs, batch size 16:
+
+| config | tok/s | mean energy | avg power |
+|---|---|---|---|
+| no_spec | 43.1 | 2055.2 J | 191.4W |
+| chosen (3/4/8) | 73.0 | 533.4 J | 253.7W |
+| chosen_bs16 (3/2/4) | 67.8 | 565.6 J | 250.0W |
+
+`chosen_bs16`'s `(3,2,4)` predates the sweep-pipeline fix that moved the
+batch-16 pick to `(3,4,8)` -- see the label note in the RoPE-bug section
+above. That fix landed after this pilot ran, so this leg tests a
+since-superseded config, not a second current recommendation alongside
+`chosen`.
+
+That looks like a repeat of the 1B win, but the `no_spec` mean is
+distorted: its two instances ran at **15.0 tok/s and 71.2 tok/s** on
+near-identical ~7.1-7.3k-token prompts (404 vs 313 output tokens, 27.0s vs
+4.4s). GPU memory grew ~1GB during the slow one, with no throttling and a
+flat 1410MHz clock throughout -- consistent with one-time warmup work
+landing inside the timed window for that first request. `chosen` and
+`chosen_bs16` show no equivalent gap between their two instances (72.8 vs
+73.2, and 66.9 vs 68.7 tok/s), so averaging the contaminated `no_spec` call
+in inflates the apparent speedup.
+
+Matched on the one `no_spec` instance that isn't affected
+(`astropy-14182`):
+
+| config | tok/s | J / output token |
+|---|---|---|
+| no_spec | 71.2 | 3.865 |
+| chosen | 73.2 | 3.554 (-8%) |
+| chosen_bs16 | 68.7 | 3.710 (-4%) |
+
+At 8B the throughput gain is within noise (+2.8% for `chosen`;
+`chosen_bs16` is actually ~3.5% slower) and the energy saving drops from
+the 1B pilot's 31-39% to single digits. `avg_spec_accept_length` isn't
+recoverable for this run -- `/get_server_info` was queried after each
+server had already been torn down, for all three configs -- so there's no
+accept-length figure to check whether the draft's hit rate against the
+bigger target actually fell, or something else is going on.
+
+All 6 generations, across all three configs and both instances, hit
+`model_invalid_fallback` (`git apply` reports a corrupt patch), so
+`resolved` is 0/2 everywhere. Same capability ceiling as the 1B model,
+unmoved by the 8x parameter increase, at least on these two instances.
+
+2 instances, 1 of them usable for the matched comparison. That's a reason
+to re-run with a larger subset before trusting the direction, not a
+conclusion that the recipe stops working at 8B.
 
 ## Multi-turn conversational agent tasks (τ²-bench pilot)
 
 A workload closer to what the sweep's chosen params were tuned on:
 [τ²-bench](https://github.com/sierra-research/tau2-bench) (Sierra
-Research) -- a customer-service agent benchmark with an LLM playing the
-user, shorter multi-turn exchanges than Terminal-Bench's tool-call loop.
+Research), a customer-service agent benchmark with an LLM playing the user
+and shorter multi-turn exchanges than Terminal-Bench's tool-call loop.
 Same GPU, same model pair, `retail` domain, agent talking to the local
 sglang server via LiteLLM's OpenAI-compatible client, user-simulator via
 OpenRouter (`gpt-4o-mini`). 3 configs x 2 tasks, 1 trial each:
@@ -469,6 +574,10 @@ OpenRouter (`gpt-4o-mini`). 3 configs x 2 tasks, 1 trial each:
 | no_spec | 41.6 | 41.6 | 1.00 | 1.00 |
 | chosen (3/4/8) | 37.8 | **83.5** | 1.14 | **2.80** |
 | chosen_bs16 (3/2/4) | 44.5 | **51.1** | 1.10 | **2.56** |
+
+(`chosen_bs16`'s `(3,2,4)` predates the sweep-pipeline fix that moved the
+batch-16 pick to `(3,4,8)` -- see the label note in the RoPE-bug section
+above.)
 
 Both columns are task `105` only, since `no_spec`'s task `106` trial died
 with an `infrastructure_error` and there is no baseline to compare `106`
@@ -480,15 +589,16 @@ against. Matched on that one task:
 | chosen | 6,388 | 76.5s | **83.5** | 44.7W | 4.74 kJ | **0.742** |
 | chosen_bs16 | 3,210 | 62.8s | 51.1 | 36.9W | 3.73 kJ | 1.162 |
 
-`chosen` doubles throughput for the same energy -- **-53% J/token**. The
+`chosen` doubles throughput for the same energy, a **-53% change in
+J/token**. The
 earlier claim that `chosen` "is actually slower than `no_spec` here" was
 the RoPE bug; with the draft head's positional encoding matching the
 target, the sweep's `(3,4,8)` pick behaves on conversational agent turns
 the way it does on the synthetic sweep. None of the trials scored reward
 > 0 (all terminate on `max_steps`), which is again the 1B ceiling.
 
-The original framing -- that agentic prompts "push past the EAGLE3 draft
-head's effective context" and that this explains the lost speedup -- was
+The original framing, that agentic prompts push past the EAGLE3 draft
+head's effective context and that this explains the lost speedup, was
 wrong. Accept length is 2.2-2.8 on all three agentic benchmarks once the
 draft's RoPE config matches the target's, at prompt lengths from 3k to
 57k tokens.
